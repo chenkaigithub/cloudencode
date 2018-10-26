@@ -1,0 +1,39 @@
+{
+  "httpport":8000,
+  "pprofport":9000,
+  "tempdir":"/a8root/work/service/media.encoder.server/temp",
+  "enctempdir":"/a8root/work/service/media.encoder.server/enctemp",
+  "bindir":"/a8root/work/service/media.encoder.server/bin",
+  "hlsinterval":6,
+  "osskeyid":"PGFkzaIuMAElduvn",
+  "osskeysec":"P6sd8ZmcOtf0eZELqqYt3tYPuLCqMW",
+  "ossendpoint":"http://vpc100-oss-cn-beijing.aliyuncs.com",
+  "ossbucket":"oper-img-1",
+  "redishost":"10.111.242.172",
+  "redisport":8379,
+  "redispwd":"Meelive2015",
+  "encode_profile":[
+    {
+      "name":"540p",
+      "width": 960,
+      "height": 540,
+      "profile": "baseline",
+      "bitrate": 1000,
+      "framerate": 30,
+      "ar": 44100,
+      "ab": 64,
+      "ac": 2
+    },
+    {
+      "name":"720p",
+      "width": 1280,
+      "height": 720,
+      "profile": "baseline",
+      "bitrate": 800,
+      "framerate": 30,
+      "ar": 44100,
+      "ab": 64,
+      "ac": 2
+    }
+  ]
+}
