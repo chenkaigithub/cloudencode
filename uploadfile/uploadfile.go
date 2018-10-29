@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/cloudencode/common"
+	"github.com/cloudencode/configure"
 	log "github.com/cloudencode/logging"
 	"github.com/oss"
 )
@@ -137,9 +138,10 @@ func (self *Uploadfile) UploadFile(filename string) (url string, err error) {
 			filekey, filename, self.Bucket, err)
 		return "", err
 	}
+	hostname := strings.TrimLeft(configure.EncodeCfgInfo.Ossendpoint, "http://")
 
-	url = fmt.Sprintf("http://%s.oss-cn-beijing.aliyuncs.com/%s", self.Bucket, filekey)
-	log.Info("PutObjectFromFile ok: http://" + self.Bucket + ".oss-cn-beijing.aliyuncs.com/" + filekey)
+	url = fmt.Sprintf("http://%s.%s/%s", self.Bucket, hostname, filekey)
+	log.Info("UploadFile ok: url=", url)
 	return url, nil
 }
 
@@ -162,8 +164,9 @@ func (self *Uploadfile) UploadFileEx(filename string, subpath string, outputFile
 			filekey, filename, self.Bucket, err)
 		return "", err
 	}
+	hostname := strings.TrimLeft(configure.EncodeCfgInfo.Ossendpoint, "http://")
 
-	url = fmt.Sprintf("http://%s.oss-cn-beijing.aliyuncs.com/%s", self.Bucket, filekey)
-	log.Info("PutObjectFromFile ok: http://" + self.Bucket + ".oss-cn-beijing.aliyuncs.com/" + filekey)
+	url = fmt.Sprintf("http://%s.%s/%s", self.Bucket, hostname, filekey)
+	log.Info("UploadFileEx ok: url=", url)
 	return url, nil
 }
