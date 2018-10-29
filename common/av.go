@@ -2,6 +2,7 @@ package common
 
 type EncodeInfo struct {
 	Srcfile     string `json:"srcfile`
+	Destsubdir  string `json:"destsubdir"`
 	Destfile    string `json:"destfile`
 	Profilename string `json:"profilename`
 }
@@ -30,4 +31,5 @@ type EncodedCheckI interface {
 
 type FileUploadI interface {
 	UploadFile(filename string) (url string, err error)
+	UploadFileEx(filename string, subpath string, outputFilename string) (url string, err error)
 }

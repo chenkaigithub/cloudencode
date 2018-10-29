@@ -76,13 +76,13 @@ func (self *EncMgr) onCheck() {
 			if encinfo.SliceCtrl.TsIndexMap.Count() == 0 {
 				encinfo.SliceCtrl.IsCheckDone = true
 				log.Infof("check done: id=%s, info=%+v", encinfo.SliceCtrl.Id, encinfo.SliceCtrl.Info)
-				self.dofinish(encinfo.SliceCtrl.Info.Profilename, encinfo.SliceCtrl.Id, encinfo.SliceCtrl.Info.Destfile)
+				go self.dofinish(encinfo.SliceCtrl.Info.Profilename, encinfo.SliceCtrl.Id, encinfo.SliceCtrl)
 			}
 		}
 	}
 }
 
-func (self *EncMgr) dofinish(profileName string, Id string, outputFilename string) error {
+func (self *EncMgr) dofinish(profileName string, Id string, sliceObj *mediaslice.MediaSlice) error {
 	srcFilename := fmt.Sprintf("%s/%s_%s/%s.m3u8", configure.EncodeCfgInfo.Tempdir, profileName, Id, Id)
 	dstFilename := fmt.Sprintf("%s/%s_%s_encode/%s.m3u8", configure.EncodeCfgInfo.Enctempdir, profileName, Id, Id)
 
@@ -106,18 +106,30 @@ func (self *EncMgr) dofinish(profileName string, Id string, outputFilename strin
 		}
 
 		if err == nil {
-			self.synthesis(url, outputFilename)
+			var outputFilename string
+			outputFilename, err = self.synthesis(url, sliceObj)
+			if err == nil {
+				self.notify.UploadFileEx(outputFilename, sliceObj.Info.Destsubdir, sliceObj.Info.Destfile)
+			}
 		}
 	}
 	return nil
 }
 
-func (self *EncMgr) synthesis(m3u8Url string, outputFilename string) error {
-	var err error
+func (self *EncMgr) synthesis(m3u8Url string, sliceObj *mediaslice.MediaSlice) (outputFilename string, err error) {
 	var out []byte
 
 	ffmpegbin := fmt.Sprintf("%s/ffmpeg", configure.EncodeCfgInfo.Bindir)
+	outputDir := fmt.Sprintf("%s/%s", configure.EncodeCfgInfo.Enctempdir, sliceObj.Id)
 
+	if !common.CheckFileIsExist(outputDir) {
+		err = common.MakeDir(outputDir)
+		if err != nil {
+			log.Errorf("EncMgr synthesis mkdir error:%v", err)
+			return "", err
+		}
+	}
+	outputFilename = fmt.Sprintf("%s/%s", outputDir, sliceObj.Info.Destfile)
 	cmdStr := fmt.Sprintf("%s -i %s -c copy -copyts -f mp4 %s", ffmpegbin, m3u8Url, outputFilename)
 	log.Infof("synthesis command: %s", cmdStr)
 
@@ -125,13 +137,13 @@ func (self *EncMgr) synthesis(m3u8Url string, outputFilename string) error {
 	out, err = cmd.Output()
 	if err != nil {
 		log.Errorf("synthesis error:%v, output:%s", err, string(out))
-		return err
+		return "", err
 	}
 
 	if len(out) > 0 {
 		log.Infof("synthesis command output:%s", string(out))
 	}
-	return nil
+	return
 }
 
 func (self *EncMgr) WriteMsg(info *common.EncodeInfo) (string, error) {

@@ -142,3 +142,28 @@ func (self *Uploadfile) UploadFile(filename string) (url string, err error) {
 	log.Info("PutObjectFromFile ok: http://" + self.Bucket + ".oss-cn-beijing.aliyuncs.com/" + filekey)
 	return url, nil
 }
+
+func (self *Uploadfile) UploadFileEx(filename string, subpath string, outputFilename string) (url string, err error) {
+	filekey := fmt.Sprintf("%s/%s", subpath, outputFilename)
+	Client, err := oss.New(self.EndPoint, self.AccessKeyId, self.AccessKeySecret)
+	if err != nil {
+		log.Errorf("oss.New error:%v", err)
+		return "", err
+	}
+	bucket, err := Client.Bucket(self.Bucket)
+	if err != nil {
+		log.Errorf("Get Bucket error:%v", err)
+		return "", err
+	}
+
+	err = bucket.PutObjectFromFile(filekey, filename)
+	if err != nil {
+		log.Errorf("PutObjectFromFile filekey=%s, filepath=%s bucket=%s error:%v",
+			filekey, filename, self.Bucket, err)
+		return "", err
+	}
+
+	url = fmt.Sprintf("http://%s.oss-cn-beijing.aliyuncs.com/%s", self.Bucket, filekey)
+	log.Info("PutObjectFromFile ok: http://" + self.Bucket + ".oss-cn-beijing.aliyuncs.com/" + filekey)
+	return url, nil
+}
