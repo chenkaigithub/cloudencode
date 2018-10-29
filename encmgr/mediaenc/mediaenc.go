@@ -68,13 +68,13 @@ func (self *MediaEnc) encodefile(info *common.EncodeFileInfo) error {
 	if err != nil {
 		return err
 	}
-	cmdString := fmt.Sprintf("%s -i %s -c:v libx264 -s %s -profile:v %s -b:v %s -r %s -c:a libfdk_aac -ab %s -ar %s -ac %s -f mpegts %s",
+	cmdString := fmt.Sprintf("%s -i %s -c:v libx264 -s %s -profile:v %s -b:v %s -r %s -c:a libfdk_aac -ab %s -ar %s -ac %s -copyts -f mpegts %s",
 		ffmpegbin, info.Filename, resolution, profileinfo.Profile, vbitrate, vframerate, abitrate, arate, achannel, outputFilename)
 	log.Infof("encodefile cmd:%s", cmdString)
 
 	cmd := exec.Command(ffmpegbin, "-i", info.Filename, "-c:v", "libx264", "-s", resolution,
 		"-profile:v", profileinfo.Profile, "-b:v", vbitrate, "-r", vframerate,
-		"-c:a", "aac", "-ab", abitrate, "-ar", arate, "-ac", achannel, "-f", "mpegts", outputFilename)
+		"-c:a", "aac", "-ab", abitrate, "-ar", arate, "-ac", achannel, "-copyts", "-f", "mpegts", outputFilename)
 	out, err = cmd.Output()
 	if err != nil {
 		log.Errorf("runslice error:%v, output:%s", err, string(out))

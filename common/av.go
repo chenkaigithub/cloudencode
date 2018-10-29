@@ -27,3 +27,7 @@ type EncodeNotification interface {
 type EncodedCheckI interface {
 	IsEncodedDone(key string) bool
 }
+
+type FileUploadI interface {
+	UploadFile(filename string) (url string, err error)
+}

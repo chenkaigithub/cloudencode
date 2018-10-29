@@ -50,6 +50,7 @@ func main() {
 	redisObj.SetEncodeNotify(mediaEncObj)
 	watchfileObj.SetUploadNotify(uploadfileObj)
 	encmgrObj.SetCheckDone(redisObj)
+	encmgrObj.SetUploadNotify(uploadfileObj)
 
 	watchfileObj.Start()
 	uploadfileObj.Start()

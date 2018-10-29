@@ -56,9 +56,11 @@ func (self *Uploadfile) doUpload(filename string) {
 	var url string
 
 	for index := 0; index < 5; index++ {
-		url, err = self.uploadFile(filename)
-		if err == nil && self.isTsFile(filename) {
-			self.removeFile(filename)
+		url, err = self.UploadFile(filename)
+		if err == nil {
+			if self.isTsFile(filename) {
+				self.removeFile(filename)
+			}
 			break
 		}
 	}
@@ -106,7 +108,7 @@ func (self *Uploadfile) Notify(filename string) error {
 	return nil
 }
 
-func (self *Uploadfile) uploadFile(filename string) (url string, err error) {
+func (self *Uploadfile) UploadFile(filename string) (url string, err error) {
 	infolist := strings.Split(filename, "/")
 	if len(infolist) < 3 {
 		log.Errorf("uploadFile filename(%s) error", filename)
@@ -115,16 +117,9 @@ func (self *Uploadfile) uploadFile(filename string) (url string, err error) {
 
 	lastIndex := len(infolist) - 1
 	lastname := infolist[lastIndex]
-	tempinfo := infolist[lastIndex-1]
-	index := strings.Index(tempinfo, "_")
-	if index <= 0 {
-		log.Errorf("uploadFile filename(%s) error", filename)
-		return "", errors.New(fmt.Sprintf("filename(%s) error", filename))
-	}
-	profilename := tempinfo[:index]
-	id := tempinfo[index+1:]
+	profilenameID := infolist[lastIndex-1]
 
-	filekey := fmt.Sprintf("%s_%s/%s", profilename, id, lastname)
+	filekey := fmt.Sprintf("%s/%s", profilenameID, lastname)
 	Client, err := oss.New(self.EndPoint, self.AccessKeyId, self.AccessKeySecret)
 	if err != nil {
 		log.Errorf("oss.New error:%v", err)
