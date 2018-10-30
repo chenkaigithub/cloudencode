@@ -30,3 +30,4 @@ cloudencode是一个分布式并行转码服务
 * 如果所有的ts分片都转码完毕，就启动合并程序，将多个ts小文件合成完整mp4。
 
 ## 1.2. 使用说明
+使用说明简要文档: [使用说明](https://gitlab.com/xiaoq_bj/cloudencode/blob/master/doc/howtouse.md)
