@@ -19,7 +19,7 @@ cloudencode是一个分布式并行转码服务
 ### 1.1.2. 分布式并行转码服务的方法
 主要利用文件切片技术，将大文件切成小片后，放入存储，多台服务器的服务进程都各自取分片文件转码，所有分片完成转码后，再组成完整视频文件。<br/>
 业务组网图如下：
-![architecture](https://gitlab.com/xiaoq_bj/cloudencode/blob/master/doc/%E5%88%86%E5%B8%83%E5%BC%8F%E5%B9%B6%E8%A1%8C%E8%BD%AC%E7%A0%81.png)
+![architecture](https://gitlab.com/xiaoq_bj/cloudencode/blob/master/doc/fenbushi.png)
 
 主要步骤如下：
 * 对大文件进行切片：切片后生成xxx.ts上传到oss存储，并lpush到redis消息队列中
