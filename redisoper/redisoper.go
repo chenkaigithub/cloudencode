@@ -224,11 +224,79 @@ func (self *RedisOper) IsEncodedDone(key string) bool {
 
 	value, err := client.Do("GET", key)
 	if err != nil || value == nil {
-		log.Errorf("redis get error:%v, key=%s", err, key)
+		//log.Errorf("redis get error:%v, key=%s", err, key)
 		return false
 	}
 	log.Infof("redis get key(%s) ok", key)
 	return true
+}
+
+func (self *RedisOper) UpdateEncodeStat(info *common.EncodeStatInfo) error {
+	client := self.redispool.Get()
+	if client == nil {
+		return errors.New("get redis client error")
+	}
+	defer client.Close()
+
+	data, err := json.Marshal(info)
+	if err != nil {
+		log.Errorf("redis UpdateEncodeStat error:%v", err)
+		return err
+	}
+
+	dataStr := string(data)
+	timeoutString := fmt.Sprintf("%d", 60*60)
+	log.Infof("redis UpdateEncodeStat key=%s, value=%s, timeout=%s", info.Id, dataStr, timeoutString)
+	_, err = client.Do("SETEX", info.Id, timeoutString, dataStr)
+	if err != nil {
+		log.Errorf("redis UpdateEncodeStat set error:%v", err)
+		return err
+	}
+	return nil
+}
+
+func (self *RedisOper) GetEncodeStat(Id string) (info *common.EncodeStatInfo, err error) {
+	err = nil
+	info = &common.EncodeStatInfo{
+		Code:        common.RET_ID_NOT_EXIST,
+		Id:          Id,
+		Statuscode:  common.ENCODE_NOT_EXIST,
+		Dscr:        common.ENCODE_STATUS_DSCR[common.ENCODE_NOT_EXIST],
+		Tstotal:     0,
+		Tsleftcount: 0,
+	}
+
+	client := self.redispool.Get()
+	if client == nil {
+		log.Error("GetEncodeStat get redis client error")
+		err = errors.New("get redis client error")
+		return
+	}
+	defer client.Close()
+
+	value, err := client.Do("GET", Id)
+	if err != nil || value == nil {
+		log.Errorf("redis GetEncodeStat get error:%v, key=%s", err, Id)
+		return
+	}
+	log.Infof("redis get key(%s) return ", Id)
+
+	var retStr string
+	retStr, err = redis.String(value, err)
+	if err != nil {
+		log.Errorf("redis GetEncodeStat get error:%v, key=%s", err, Id)
+		return
+	}
+
+	log.Infof("redis GetEncodeStat key=%s, value=%s", Id, retStr)
+	data := []byte(retStr)
+	err = json.Unmarshal(data, info)
+	if err != nil {
+		log.Errorf("redis GetEncodeStat json decode error:%v, key=%s", err, Id)
+		return
+	}
+	log.Infof("redis GetEncodeStat key=%s, info=%+v", Id, info)
+	return
 }
 
 func (self *RedisOper) setValue(filename string, profileName string, idString string) error {

@@ -15,21 +15,24 @@ import (
 )
 
 type MediaSlice struct {
-	Id          string
-	Info        *common.EncodeInfo
-	cmd         *exec.Cmd
-	IsM3u8Ready bool
-	IsCheckDone bool
-	TsIndexMap  cmap.ConcurrentMap
+	Id           string
+	Info         *common.EncodeInfo
+	cmd          *exec.Cmd
+	IsM3u8Ready  bool
+	IsCheckDone  bool
+	IsUploadDone bool
+	TSTotal      int
+	TsIndexMap   cmap.ConcurrentMap
 }
 
 func NewMediaSlice(id string, info *common.EncodeInfo) *MediaSlice {
 	return &MediaSlice{
-		Id:          id,
-		Info:        info,
-		IsM3u8Ready: false,
-		IsCheckDone: false,
-		TsIndexMap:  cmap.New(),
+		Id:           id,
+		Info:         info,
+		IsM3u8Ready:  false,
+		IsCheckDone:  false,
+		IsUploadDone: false,
+		TsIndexMap:   cmap.New(),
 	}
 }
 
@@ -107,6 +110,7 @@ func (self *MediaSlice) makeTslist(m3u8file string) error {
 	}
 	self.IsCheckDone = false
 	self.IsM3u8Ready = true
+	self.TSTotal = self.TsIndexMap.Count()
 
 	return nil
 }

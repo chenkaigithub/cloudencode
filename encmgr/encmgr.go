@@ -13,6 +13,8 @@ import (
 	log "github.com/cloudencode/logging"
 )
 
+const FINISH_TIMEOUT = 300 * 1000
+
 type EncMgr struct {
 	encTaskMap  cmap.ConcurrentMap
 	channInfo   chan *EncInfo
@@ -23,6 +25,8 @@ type EncMgr struct {
 
 type EncInfo struct {
 	Id        string
+	StartT    int64
+	EndT      int64
 	SliceCtrl *mediaslice.MediaSlice
 }
 
@@ -30,7 +34,7 @@ func NewEncMgr() *EncMgr {
 	ret := &EncMgr{
 		encTaskMap:  cmap.New(),
 		channInfo:   make(chan *EncInfo, 1000),
-		currencChan: make(chan int, runtime.NumCPU()),
+		currencChan: make(chan int, runtime.NumCPU()-1),
 	}
 
 	go ret.onWork()
@@ -49,6 +53,8 @@ func (self *EncMgr) SetCheckDone(checkDone common.EncodedCheckI) {
 func (self *EncMgr) onCheck() {
 	for {
 		<-time.After(5 * time.Second)
+		var removeList []string
+
 		for item := range self.encTaskMap.IterBuffered() {
 			encinfo := item.Val.(*EncInfo)
 
@@ -57,6 +63,10 @@ func (self *EncMgr) onCheck() {
 			}
 
 			if encinfo.SliceCtrl.IsCheckDone {
+				nowT := time.Now().UnixNano() / (1000 * 1000)
+				if nowT-encinfo.EndT > FINISH_TIMEOUT {
+					removeList = append(removeList, encinfo.Id)
+				}
 				continue
 			}
 			var removeList []string
@@ -64,7 +74,7 @@ func (self *EncMgr) onCheck() {
 				tsIndex := tsIndexItem.Key
 				isDone := self.checkDone.IsEncodedDone(tsIndex)
 				if !isDone {
-					break
+					continue
 				}
 				removeList = append(removeList, tsIndex)
 			}
@@ -76,13 +86,22 @@ func (self *EncMgr) onCheck() {
 			if encinfo.SliceCtrl.TsIndexMap.Count() == 0 {
 				encinfo.SliceCtrl.IsCheckDone = true
 				log.Infof("check done: id=%s, info=%+v", encinfo.SliceCtrl.Id, encinfo.SliceCtrl.Info)
-				go self.dofinish(encinfo.SliceCtrl.Info.Profilename, encinfo.SliceCtrl.Id, encinfo.SliceCtrl)
+				go self.dofinish(encinfo)
 			}
+			self.updateEncodeStatInfo(encinfo)
+		}
+		for _, ID := range removeList {
+			log.Errorf("encMgr remove finished ID:=%s", ID)
+			self.encTaskMap.Remove(ID)
 		}
 	}
 }
 
-func (self *EncMgr) dofinish(profileName string, Id string, sliceObj *mediaslice.MediaSlice) error {
+func (self *EncMgr) dofinish(encinfo *EncInfo) error {
+	profileName := encinfo.SliceCtrl.Info.Profilename
+	Id := encinfo.SliceCtrl.Id
+	sliceObj := encinfo.SliceCtrl
+
 	srcFilename := fmt.Sprintf("%s/%s_%s/%s.m3u8", configure.EncodeCfgInfo.Tempdir, profileName, Id, Id)
 	dstFilename := fmt.Sprintf("%s/%s_%s_encode/%s.m3u8", configure.EncodeCfgInfo.Enctempdir, profileName, Id, Id)
 
@@ -107,17 +126,25 @@ func (self *EncMgr) dofinish(profileName string, Id string, sliceObj *mediaslice
 
 		if err == nil {
 			var outputFilename string
-			outputFilename, err = self.synthesis(url, sliceObj)
+			outputFilename, err = self.synthesis(url, encinfo)
 			if err == nil {
-				self.notify.UploadFileEx(outputFilename, sliceObj.Info.Destsubdir, sliceObj.Info.Destfile)
+				var outputURL string
+				outputURL, err = self.notify.UploadFileEx(outputFilename, sliceObj.Info.Destsubdir, sliceObj.Info.Destfile)
+				if err == nil {
+					encinfo.EndT = time.Now().UnixNano() / (1000 * 1000)
+					encinfo.SliceCtrl.IsUploadDone = true
+					costT := encinfo.EndT - encinfo.StartT
+					log.Infof("finished: it takes %dms to finish encode, url=%s", costT, outputURL)
+				}
 			}
 		}
 	}
 	return nil
 }
 
-func (self *EncMgr) synthesis(m3u8Url string, sliceObj *mediaslice.MediaSlice) (outputFilename string, err error) {
+func (self *EncMgr) synthesis(m3u8Url string, encinfo *EncInfo) (outputFilename string, err error) {
 	var out []byte
+	sliceObj := encinfo.SliceCtrl
 
 	ffmpegbin := fmt.Sprintf("%s/ffmpeg", configure.EncodeCfgInfo.Bindir)
 	outputDir := fmt.Sprintf("%s/%s", configure.EncodeCfgInfo.Enctempdir, sliceObj.Id)
@@ -151,15 +178,92 @@ func (self *EncMgr) WriteMsg(info *common.EncodeInfo) (string, error) {
 
 	id := common.NewId()
 
+	nowT := time.Now().UnixNano() / (1000 * 1000)
 	mediaslice := mediaslice.NewMediaSlice(id, info)
 	encinfo := &EncInfo{
 		Id:        id,
+		StartT:    nowT,
 		SliceCtrl: mediaslice,
 	}
 
 	self.channInfo <- encinfo
 
 	return id, nil
+}
+
+func (self *EncMgr) updateEncodeStatInfo(encinfo *EncInfo) {
+	ID := encinfo.Id
+
+	info := &common.EncodeStatInfo{
+		Code:        common.RET_ID_NOT_EXIST,
+		Id:          ID,
+		Statuscode:  common.ENCODE_NOT_EXIST,
+		Dscr:        common.ENCODE_STATUS_DSCR[common.ENCODE_NOT_EXIST],
+		Tstotal:     0,
+		Tsleftcount: 0,
+	}
+
+	if encinfo.SliceCtrl.IsM3u8Ready && !encinfo.SliceCtrl.IsCheckDone {
+		costT := time.Now().UnixNano()/int64(1000*1000) - encinfo.StartT
+		info = &common.EncodeStatInfo{
+			Code:        common.RET_OK,
+			Id:          ID,
+			Statuscode:  common.ENCODE_TS_ENCODING,
+			Dscr:        common.ENCODE_STATUS_DSCR[common.ENCODE_TS_ENCODING],
+			Tstotal:     encinfo.SliceCtrl.TSTotal,
+			Tsleftcount: encinfo.SliceCtrl.TsIndexMap.Count(),
+			Starttime:   encinfo.StartT,
+			Endtime:     0,
+			Costtime:    costT,
+		}
+	} else if encinfo.SliceCtrl.IsCheckDone && !encinfo.SliceCtrl.IsUploadDone {
+		costT := time.Now().UnixNano()/int64(1000*1000) - encinfo.StartT
+		info = &common.EncodeStatInfo{
+			Code:        common.RET_OK,
+			Id:          ID,
+			Statuscode:  common.ENCODE_TS_ENODE_DONE,
+			Dscr:        common.ENCODE_STATUS_DSCR[common.ENCODE_TS_ENODE_DONE],
+			Tstotal:     encinfo.SliceCtrl.TSTotal,
+			Tsleftcount: encinfo.SliceCtrl.TsIndexMap.Count(),
+			Starttime:   encinfo.StartT,
+			Endtime:     0,
+			Costtime:    costT,
+		}
+	} else if encinfo.SliceCtrl.IsUploadDone {
+		info = &common.EncodeStatInfo{
+			Code:        common.RET_OK,
+			Id:          ID,
+			Statuscode:  common.ENCODE_MP4_DONE,
+			Dscr:        common.ENCODE_STATUS_DSCR[common.ENCODE_MP4_DONE],
+			Tstotal:     encinfo.SliceCtrl.TSTotal,
+			Tsleftcount: encinfo.SliceCtrl.TsIndexMap.Count(),
+			Starttime:   encinfo.StartT,
+			Endtime:     encinfo.EndT,
+			Costtime:    encinfo.EndT - encinfo.StartT,
+		}
+
+	} else {
+		costT := time.Now().UnixNano()/int64(1000*1000) - encinfo.StartT
+		info = &common.EncodeStatInfo{
+			Code:        common.RET_OK,
+			Id:          ID,
+			Statuscode:  common.ENCODE_INIT,
+			Dscr:        common.ENCODE_STATUS_DSCR[common.ENCODE_INIT],
+			Tstotal:     0,
+			Tsleftcount: 0,
+			Starttime:   encinfo.StartT,
+			Endtime:     0,
+			Costtime:    costT,
+		}
+	}
+	self.checkDone.UpdateEncodeStat(info)
+	return
+}
+
+func (self *EncMgr) GetEncodeStatInfo(ID string) (info *common.EncodeStatInfo) {
+	info, _ = self.checkDone.GetEncodeStat(ID)
+
+	return
 }
 
 func (self *EncMgr) onWork() {

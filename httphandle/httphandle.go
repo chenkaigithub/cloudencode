@@ -46,6 +46,9 @@ func (self *HttpHandleServer) StartHttpServer() error {
 	mux.HandleFunc("/api/startenc", func(w http.ResponseWriter, r *http.Request) {
 		self.startEncodeHandle(w, r)
 	})
+	mux.HandleFunc("/api/encstat", func(w http.ResponseWriter, r *http.Request) {
+		self.queryStatHandle(w, r)
+	})
 	http.Serve(flvListen, mux)
 	return nil
 }
@@ -86,5 +89,27 @@ func (self *HttpHandleServer) startEncodeHandle(w http.ResponseWriter, r *http.R
 	}
 	self.encodeResponse(w, START_ENC_OK, "start encoding ok", id)
 
+	return
+}
+
+func (self *HttpHandleServer) queryStatHandle(w http.ResponseWriter, req *http.Request) {
+	req.ParseForm()
+	idList := req.Form["id"]
+	if len(idList) == 0 {
+		http.Error(w, "no id inputed", http.StatusBadRequest)
+		return
+	}
+	ID := idList[0]
+
+	info := self.writer.GetEncodeStatInfo(ID)
+
+	retData, err := json.Marshal(info)
+	if err != nil {
+		log.Errorf("queryStatHandle json encode error:%v", err)
+		http.Error(w, fmt.Sprintf("queryStatHandle json encode error:%v", err), http.StatusBadRequest)
+		return
+	}
+
+	w.Write(retData)
 	return
 }
