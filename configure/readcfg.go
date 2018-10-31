@@ -21,6 +21,7 @@ type EncodeConfigure struct {
 	Redishost      string          `json:"redishost"`
 	Redisport      int             `json:"redisport"`
 	Redispwd       string          `json:"redispwd"`
+	Procmax        int             `json:"procmax"`
 	Encode_profile []EncodeProfile `json:"encode_profile"`
 }
 

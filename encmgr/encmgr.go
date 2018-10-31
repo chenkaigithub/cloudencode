@@ -16,11 +16,11 @@ import (
 const FINISH_TIMEOUT = 300 * 1000
 
 type EncMgr struct {
-	encTaskMap  cmap.ConcurrentMap
-	channInfo   chan *EncInfo
-	currencChan chan int
-	checkDone   common.EncodedCheckI
-	notify      common.FileUploadI
+	encTaskMap       cmap.ConcurrentMap
+	channInfo        chan *EncInfo
+	channConcurrence chan int
+	checkDone        common.EncodedCheckI
+	notify           common.FileUploadI
 }
 
 type EncInfo struct {
@@ -32,9 +32,18 @@ type EncInfo struct {
 
 func NewEncMgr() *EncMgr {
 	ret := &EncMgr{
-		encTaskMap:  cmap.New(),
-		channInfo:   make(chan *EncInfo, 1000),
-		currencChan: make(chan int, runtime.NumCPU()-1),
+		encTaskMap: cmap.New(),
+		channInfo:  make(chan *EncInfo, 1000),
+	}
+
+	if configure.EncodeCfgInfo.Procmax == 0 {
+		procnum := runtime.NumCPU() - 1
+		if procnum <= 0 {
+			procnum = 1
+		}
+		ret.channConcurrence = make(chan int, procnum)
+	} else {
+		ret.channConcurrence = make(chan int, configure.EncodeCfgInfo.Procmax)
 	}
 
 	go ret.onWork()
@@ -277,9 +286,9 @@ func (self *EncMgr) onWork() {
 
 func (self *EncMgr) StartSlice(encinfo *EncInfo) {
 	defer func() {
-		<-self.currencChan
+		<-self.channConcurrence
 	}()
-	self.currencChan <- 1
+	self.channConcurrence <- 1
 
 	encinfo.SliceCtrl.StartSlice()
 }

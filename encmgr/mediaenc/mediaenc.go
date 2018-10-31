@@ -19,8 +19,16 @@ type MediaEnc struct {
 
 func NewMediaEnc() *MediaEnc {
 	ret := &MediaEnc{
-		chanFilename:    make(chan *common.EncodeFileInfo),
-		chanConcurrence: make(chan int, runtime.NumCPU()-1),
+		chanFilename: make(chan *common.EncodeFileInfo),
+	}
+	if configure.EncodeCfgInfo.Procmax == 0 {
+		procnum := runtime.NumCPU() - 1
+		if procnum <= 0 {
+			procnum = 1
+		}
+		ret.chanConcurrence = make(chan int, procnum)
+	} else {
+		ret.chanConcurrence = make(chan int, configure.EncodeCfgInfo.Procmax)
 	}
 	go ret.onwork()
 	return ret
