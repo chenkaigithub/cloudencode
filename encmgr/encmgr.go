@@ -166,7 +166,7 @@ func (self *EncMgr) synthesis(m3u8Url string, encinfo *EncInfo) (outputFilename 
 		}
 	}
 	outputFilename = fmt.Sprintf("%s/%s", outputDir, sliceObj.Info.Destfile)
-	cmdStr := fmt.Sprintf("%s -i %s -c copy -copyts -f mp4 %s", ffmpegbin, m3u8Url, outputFilename)
+	cmdStr := fmt.Sprintf("%s -i %s -c copy -copyts -movflags faststart -f mp4 %s", ffmpegbin, m3u8Url, outputFilename)
 	log.Infof("synthesis command: %s", cmdStr)
 
 	cmd := exec.Command(ffmpegbin, "-i", m3u8Url, "-c", "copy", "-copyts", "-f", "mp4", outputFilename)
