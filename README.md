@@ -21,7 +21,7 @@ cloudencode是一个分布式并行转码服务
 主要利用文件切片技术，将大文件切成小片后，放入存储，多台服务器的服务进程都各自取分片文件转码，所有分片完成转码后，再组成完整视频文件。<br/>
 业务架构组网图如下：<br/>
 
-![分布式并行转码服务架构组网](https://gitlab.com/xiaoq_bj/cloudencode/blob/master/doc/fenbushi.jpg)
+![分布式并行转码服务架构组网](https://github.com/runner365/cloudencode/blob/master/doc/fenbushi.jpg)
 <br/>
 
 主要步骤如下：
